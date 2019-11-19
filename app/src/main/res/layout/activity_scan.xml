@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.actions.voicebletest.scan.ScanActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:layout_marginLeft="15dp"
+            android:gravity="center_vertical"
+            android:text="@string/filter"/>
+
+        <EditText
+            android:id="@+id/ble_name_filter"
+            android:layout_marginLeft="15dp"
+            android:layout_width="200dp"
+            android:singleLine="true"
+            android:maxLines="1"
+            android:layout_height="50dp" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/gray"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/scan_subtitle_height"
+        android:textSize="@dimen/scan_subtitle_textsize"
+        android:gravity="center_vertical"
+        android:layout_marginLeft="@dimen/scan_subtitle_margin_left"
+        android:text="@string/available_devices"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/gray"/>
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/scan_results"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="vertical"/>
+
+</LinearLayout>

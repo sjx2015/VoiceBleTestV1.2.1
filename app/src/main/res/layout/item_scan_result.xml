@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scan_result_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?selectableItemBackground"
+    android:clickable="true"
+    android:clipToPadding="false"
+    android:orientation="vertical">
+
+    <!-- type and address -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/littleWhite"
+        android:elevation="6dp"
+        android:padding="15dp">
+
+        <ImageView
+            android:id="@+id/view_icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="4dp"
+            android:src="@mipmap/ic_bluetooth"
+            android:tint="@color/scan_result_bluetooth_icon" />
+
+        <LinearLayout
+            android:id="@+id/device_info_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="4dp"
+            android:layout_toEndOf="@id/view_icon"
+            android:orientation="vertical">
+            <!-- Type and address -->
+            <TextView
+                android:id="@+id/text_device_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/primaryText"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="BLE 282A" />
+
+            <TextView
+                android:id="@+id/text_mac_address"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="A5:09:FD:B7:C3:22" />
+
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/text_bond_state"
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="NOT BOND" />
+
+                <ImageView
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_gravity="center_vertical"
+                    android:src="@mipmap/ic_signal_cellular_4_bar"
+                    android:tint="@color/scan_result_item_rssi_icon" />
+
+                <TextView
+                    android:id="@+id/text_rssi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/tipsText"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="-69" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/dbm"
+                    android:text="@string/scan_result_item_dbm"
+                    android:textColor="@color/tipsText"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/more_option"
+            android:layout_width="18dp"
+            android:layout_height="35dp"
+            android:layout_alignParentRight="true"
+            android:src="@mipmap/ic_more_vert_black_48dp"
+            android:tint="@color/white"
+            android:background="@color/colorAccent"
+            android:layout_centerVertical="true"
+            android:visibility="gone"
+            android:text=""
+            />
+
+
+        <Button
+            android:id="@+id/btn_connect"
+            style="@style/Base.Widget.AppCompat.Button.Colored"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toLeftOf="@id/more_option"
+            android:layout_centerVertical="true"
+            android:layout_alignParentRight="true"
+            android:text="@string/scan_result_item_connect"
+            />
+
+
+    </RelativeLayout>
+
+</LinearLayout>

@@ -1,0 +1,19 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools" tools:context="com.actions.bletest.ui.MainActivity">
+
+    <group android:checkableBehavior = "none">
+        <item android:id="@+id/audio_setting"
+            android:title="@string/audio_setting" app:showAsAction="never" />
+        <item android:id="@+id/mtu"
+            android:title="@string/mtu"
+            app:showAsAction="never"/>
+        <item android:id="@+id/clear"
+            android:title="@string/clear"
+            app:showAsAction="never"/>
+        <item android:id="@+id/reconnect"
+            android:title="@string/reconnect"
+            app:showAsAction="never"/>
+    </group>
+
+</menu>

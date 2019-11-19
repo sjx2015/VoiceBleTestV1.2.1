@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="horizontal">
+
+    <EditText
+        android:id="@+id/tv_log"
+        android:layout_width="match_parent"
+        android:layout_marginLeft="10dp"
+        android:layout_height="match_parent"
+        android:cursorVisible="false"
+        android:focusable="true"
+        android:inputType="none"
+        android:clickable="false"
+        android:background="@null"
+        android:longClickable="false"
+        android:focusableInTouchMode="true"
+        android:editable="false"
+        android:textSize="14sp"
+        android:maxLength="2147483647"
+        android:text="@string/test"/>
+
+</LinearLayout>

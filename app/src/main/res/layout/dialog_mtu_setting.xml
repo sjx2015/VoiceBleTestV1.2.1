@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:whatever="http://schemas.android.com/apk/res-auto"
+    android:gravity="center"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="@string/mtu_text"/>
+
+        <com.andreabaccega.widget.FormEditText
+            android:id="@+id/ed_mtu"
+            android:layout_width="100dp"
+            whatever:testType="numericRange"
+            whatever:minNumber="23"
+            whatever:maxNumber="517"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/mtu_ok"
+            style="@style/Widget.AppCompat.Button.Borderless.Colored"
+            android:layout_alignParentRight="true"
+            android:text="OK"/>
+    </RelativeLayout>
+
+
+
+</LinearLayout>

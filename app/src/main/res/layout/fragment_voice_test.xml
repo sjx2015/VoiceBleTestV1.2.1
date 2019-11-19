@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.actions.voicebletest.widget.PullToRefreshLayout
+            android:id="@+id/refresh_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+        <include layout="@layout/refresh_head" />
+
+        <com.actions.voicebletest.widget.PullableListView
+            android:id="@+id/list_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:cacheColorHint="#00000000"
+            android:divider="@null"
+            android:dividerHeight="3dp"
+            android:scrollbarStyle="outsideOverlay" />
+
+        <include layout="@layout/load_more" />
+
+        </com.actions.voicebletest.widget.PullToRefreshLayout>
+
+    </FrameLayout>
+</RelativeLayout>
