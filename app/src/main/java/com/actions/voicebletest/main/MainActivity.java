@@ -20,7 +20,6 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.EditText;
@@ -48,8 +47,6 @@ import com.afollestad.materialdialogs.folderselector.FileChooserDialog;
 import com.andreabaccega.formedittextvalidator.Validator;
 import com.andreabaccega.widget.FormEditText;
 import com.mikepenz.materialdrawer.Drawer;
-import com.mikepenz.materialdrawer.DrawerBuilder;
-import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
 import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 import com.polidea.rxandroidble2.RxBleConnection;
 import com.polidea.rxandroidble2.RxBleDevice;
@@ -57,12 +54,9 @@ import com.trello.rxlifecycle2.components.support.RxAppCompatActivity;
 
 import org.angmarch.views.NiceSpinner;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
@@ -99,8 +93,8 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
     public static final String EXTRA_MAC_ADDRESS = "extra_mac_address";
     public static final String EXTRA_BLE_NAME = "extra_ble_name";
     public static final String EXTRA_AUTO_CONNECT = "extra_auto_connect";
-    private static final int FRAGMENT_VOICE_TEST = 0;
-    private static final int FRAGMENT_OTA = 1;
+    private static final int FRAGMENT_VOICE_TEST = 1;
+    private static final int FRAGMENT_OTA = 0;
 
     private static final int CONNECTED = 100;
     private static final int CONNECTTING = 101;
@@ -135,7 +129,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
     private Disposable connectionDisposable;
     private RxBleConnection rxBleConnection;
 
-    private DecodeJni mDecodeJni = new DecodeJni();
+    //private DecodeJni mDecodeJni = new DecodeJni();
     private short mDecodeAlgrithm = 0;//解码算法种类
     private Lock mLock = new ReentrantLock();
     private File mFile;
@@ -236,12 +230,12 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
 
         // Handle Toolbar
         setSupportActionBar(toolbar);
-        getSupportActionBar().setTitle(bleName);
-        getSupportActionBar().setSubtitle(getString(R.string.mac_address, macAddress));
+        getSupportActionBar().setTitle("   " + bleName);
+        getSupportActionBar().setSubtitle("   " + getString(R.string.mac_address, macAddress));
 
         OtaFragment.getInstance().restState();
         //Create the drawer
-        mOtaDrawerItem = new PrimaryDrawerItem().withName(R.string.ota).withIcon(getResources().getDrawable(R.mipmap.ic_file_upload_black_48dp));
+/*        mOtaDrawerItem = new PrimaryDrawerItem().withName(R.string.ota).withIcon(getResources().getDrawable(R.mipmap.ic_file_upload_black_48dp));
         result = new DrawerBuilder(this)
                 //this layout have to contain child layouts
                 .withRootView(R.id.drawer_container)
@@ -277,9 +271,12 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
                 .withSavedInstance(savedInstanceState)
                 .build();
 
+ */
+
+
         if (savedInstanceState == null) {
-            Fragment f = VoiceTestFragment.getInstance();
-            getSupportFragmentManager().beginTransaction().replace(R.id.frame_container, f, VoiceTestFragment.class.getSimpleName()).commit();
+            Fragment f = OtaFragment.getInstance();
+            getSupportFragmentManager().beginTransaction().replace(R.id.frame_container, f, OtaFragment.class.getSimpleName()).commit();
         }
 
         if (!checkStoragePermission()) {
@@ -296,11 +293,11 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(this::onConnectionStateChange);
             showIniting();
-            mHandler.postDelayed(connectTask, 1000);
+            mHandler.postDelayed(connectTask, 3000);
         }
         Log.d(TAG, "bleConnect state: " + bleDevice.getConnectionState().toString());
         setErrorHandler();
-        mDecodeJni.Init();
+        //mDecodeJni.Init();
         //test(null);//testt
     }
 
@@ -342,7 +339,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
     protected void onResume() {
         super.onResume();
     }
-
+/*
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         this.menu = menu;
@@ -376,6 +373,8 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
 
         return super.onOptionsItemSelected(item);
     }
+
+ */
 
     public class CiaoValidator extends Validator {
 
@@ -884,7 +883,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
             }
         }
     }
-
+/*
     private void test(byte[] encodeBytes) {
         mDecodeAlgrithm = 0;
         mPath = mLogcatManager.getCacheDir() + "/conference.bs.pcm";
@@ -919,7 +918,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
             e.printStackTrace();
         }
     }
-
+*/
     private void getPath() {
         String time = String.valueOf(System.currentTimeMillis());
         mPath = mLogcatManager.getCacheDir() + "/pcm/" + time + ".pcm";
@@ -930,7 +929,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
     public String getCacheDirPath() {
         return mLogcatManager.getCacheDir();
     }
-
+/*
     private void decode(byte[] encodeBytes) {
         if (!verifyDecodeAlgrithm())
             return;
@@ -979,7 +978,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
         writeShortToFile(ret);
         mBytesWrite += ret.length;
     }
-
+*/
     private long calculatePcmDuration() {
         //数据量Byte=采样频率Hz×（采样位数/8）× 声道数× 时间s
         //mBytesWrite * 2 表示一个short两个字节
@@ -1034,7 +1033,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
                 for (int i = 0; i < 20; i++) {
                     mBytesReceived[i + 20] = bytes[i];
                 }
-                decode(mBytesReceived);
+                //decode(mBytesReceived);
                 mDecode40Bytes = false;
             } else {
                 for (int i = 0; i < 20; i++) {
@@ -1043,7 +1042,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
                 mDecode40Bytes = true;
             }
         } else {
-            decode(bytes);
+            //decode(bytes);
         }
         mLock.unlock();
     }

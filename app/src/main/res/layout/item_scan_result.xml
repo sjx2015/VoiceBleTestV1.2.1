@@ -6,6 +6,7 @@
     android:layout_height="wrap_content"
     android:background="?selectableItemBackground"
     android:clickable="true"
+    android:focusable="false"
     android:clipToPadding="false"
     android:orientation="vertical">
 
@@ -23,6 +24,7 @@
             android:layout_height="48dp"
             android:layout_marginTop="4dp"
             android:src="@mipmap/ic_bluetooth"
+            android:focusable="false"
             android:tint="@color/scan_result_bluetooth_icon" />
 
         <LinearLayout
@@ -30,6 +32,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
+            android:focusable="false"
             android:layout_marginStart="4dp"
             android:layout_toEndOf="@id/view_icon"
             android:orientation="vertical">
@@ -116,10 +119,10 @@
 
         <Button
             android:id="@+id/btn_connect"
-            style="@style/Base.Widget.AppCompat.Button.Colored"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_toLeftOf="@id/more_option"
+            android:focusable="true"
             android:layout_centerVertical="true"
             android:layout_alignParentRight="true"
             android:text="@string/scan_result_item_connect"

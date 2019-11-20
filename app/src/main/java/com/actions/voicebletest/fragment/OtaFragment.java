@@ -13,8 +13,10 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.SystemClock;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.util.Log;
@@ -56,6 +58,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -63,6 +66,11 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -74,6 +82,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import de.mateware.snacky.Snacky;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
@@ -104,12 +113,12 @@ public class OtaFragment extends Fragment {
     private static final int GET_BATTERY_ERROR = 10;
     private static final int UPDATE_TIME = 11;
     private static final int VERIFYFILES_FAILED = 12;
-    private static final int CHECK_FILE_CRC32_ERROR= 13;
+    private static final int CHECK_FILE_CRC32_ERROR = 13;
     private static final int GET_FW_VERSION_SUCCESS = 14;
 
 
     private MainActivity mMainActivity = null;
-    private File file =null;
+    private File file = null;
     private FileWriter logcatFileWriter = null;
     private int LOGFILELENGTH = 1024 * 1024 * 50;
 
@@ -120,6 +129,7 @@ public class OtaFragment extends Fragment {
     public final static UUID wdxcAuUuid = UUID.fromString("005f0005-2ff2-4ed5-b045-4C7463617865");
     public final static UUID batterySvcUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb");
     public static final UUID batteryValUuid = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb");
+    public static final UUID firmwareVelUuid = UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb");
     public static final UUID CLIENT_CHARACTERISTIC_CONFIG_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     private BluetoothGattCharacteristic wdxcWdxsDc, wdxcWdxsFtc, wdxcWdxsFtd, wdxcWdxsAu;
@@ -238,6 +248,7 @@ public class OtaFragment extends Fragment {
 
     private boolean mOTANotStop = false;
 
+    private String mFirmwareVersion = null;
     private String mSpeed = "";
     private Runnable task = new Runnable() {
         @Override
@@ -264,7 +275,7 @@ public class OtaFragment extends Fragment {
                 Log.d(TAG, msg);
                 if (msg.equals("select_ota_file")) {
                     mFilePath = intent.getStringExtra("path");
-                    SharedpreferencesProvider.saveSharePerferences(SharedpreferencesProvider.OTA_PATH, mFilePath);
+                    //SharedpreferencesProvider.saveSharePerferences(SharedpreferencesProvider.OTA_PATH, mFilePath);
                     setText();
                 } else if (msg.equals("ota_reset")) {
                     reset();
@@ -296,18 +307,22 @@ public class OtaFragment extends Fragment {
                     break;
                 case OTA_SUCCESS:
                     //mCurUpdateIndex++;
-                    if (mCurUpdateIndex + 1 <= mBinPath.size()){
+                    if (mCurUpdateIndex + 1 <= mBinPath.size()) {
                         startUploadBin();
                     } else {
                         Utils.showToast("Successful File Transfer Validation!", mMainActivity);
                         setLogText("Successful File Transfer Validation!");
                         mOtaTipsTextView.setText(R.string.ota_success);
+                        File file = new File(mFilePath);
+                        if (file.exists()) {
+                            file.delete();
+                        }
                         if (mOTANotStop) {
                             setLogText("ota again!");
                             mCurUpdateIndex = 0;
                             bootLoaderSendTimes = 1;
                             startUploadBin();
-                        } else{
+                        } else {
                             WdxcFtcSendReset();
                             setLogText("WdxcFtcSendReset!");
                             mUploadBtn.setEnabled(false);
@@ -328,7 +343,7 @@ public class OtaFragment extends Fragment {
                     restState();
                     break;
                 case BATTERY_MORE_THAN_50:
-                    WdxcFtcSendUpdateConnParam(10,10,0,800);
+                    WdxcFtcSendUpdateConnParam(10, 10, 0, 800);
                     WdxcFtcSendGetVersion();
                     break;
                 case GET_FW_VERSION_SUCCESS:
@@ -341,7 +356,7 @@ public class OtaFragment extends Fragment {
                     index = 0;
                     mTiming = 0;
                     mHandler.removeCallbacks(time);
-                    mHandler.postDelayed(time,10);
+                    mHandler.postDelayed(time, 10);
                     break;
                 case GET_BATTERY_ERROR:
                     log = "Get Battery Level Error!";
@@ -394,14 +409,14 @@ public class OtaFragment extends Fragment {
         Log.d(TAG, "onCreate()");
         mMainActivity = (MainActivity) getActivity();
         initBroadcastReceiver();
-        setLogText("rxble: " +( rxBleConnection == null?"null":rxBleConnection.toString()));
-        if (rxBleConnection != null && !isDFUServiceFound){
+        setLogText("rxble: " + (rxBleConnection == null ? "null" : rxBleConnection.toString()));
+        if (rxBleConnection != null && !isDFUServiceFound) {
             //startToFoundDfuService();//TCL p561U 发现services比较慢，概率出现过同时两个startToFoundDfuService执行，故注释掉
         }
 
     }
 
-    private void createOtaLogFile(){
+    private void createOtaLogFile() {
         if (logcatFileWriter == null) {
             String logPaht = mMainActivity.getCacheDirPath() + "/ota.log";
             file = new File(logPaht);
@@ -414,7 +429,7 @@ public class OtaFragment extends Fragment {
     }
 
 
-    private void setLogText(String log){
+    private void setLogText(String log) {
         if (mMainActivity != null) {
             mMainActivity.setLogText(log);
             /*try {
@@ -451,7 +466,7 @@ public class OtaFragment extends Fragment {
                 logcatFileWriter.close();
                 logcatFileWriter = null;
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
@@ -476,7 +491,7 @@ public class OtaFragment extends Fragment {
         mUploadBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(Utils.isNoFastClick()) {
+                if (Utils.isNoFastClick()) {
                     onUploadClick();
                 } else {
                     Utils.showToast("click too fast!", getContext());
@@ -497,24 +512,24 @@ public class OtaFragment extends Fragment {
         mFilePath = SharedpreferencesProvider.getSharePerferences(SharedpreferencesProvider.OTA_PATH);
         setText();
 
-        if (mFileTransferStatus == FINISHED_TRANSFER){
+        if (mFileTransferStatus == FINISHED_TRANSFER) {
             mOtaTipsTextView.setText(R.string.ota_success);
             mUploadBtn.setEnabled(false);
             updateProgressBar(mProgress);
             mTextSpeedView.setText(mSpeed);
-            String name = mBinPath.get(mBinPath.size()-1);
-            name = name.substring(name.lastIndexOf("/")+1) + "    " + (mBinPath.size()) + "/" + mBinPath.size();
+            String name = mBinPath.get(mBinPath.size() - 1);
+            name = name.substring(name.lastIndexOf("/") + 1) + "    " + (mBinPath.size()) + "/" + mBinPath.size();
             mTextSendingFileName.setText(name);
-            getmTextSendingFileSize.setText(Utils.getFileSize(mBinPath.get(mBinPath.size()-1)) + "");
+            getmTextSendingFileSize.setText(Utils.getFileSize(mBinPath.get(mBinPath.size() - 1)) + "");
             mTimingTextView.setText(Utils.formatSecondsDuration(mTiming));
-        } else if (mFileTransferStatus == START_TRANSFER){
+        } else if (mFileTransferStatus == START_TRANSFER) {
             String name = mBinPath.get(mCurUpdateIndex);
-            name = name.substring(name.lastIndexOf("/")+1) + "    " + (mCurUpdateIndex+1) + "/" + mBinPath.size();
+            name = name.substring(name.lastIndexOf("/") + 1) + "    " + (mCurUpdateIndex + 1) + "/" + mBinPath.size();
             mTextSendingFileName.setText(name);
             getmTextSendingFileSize.setText(Utils.getFileSize(mBinPath.get(mCurUpdateIndex)) + "");
             mTimingTextView.setText(Utils.formatSecondsDuration(mTiming));
-            mHandler.postDelayed(task,20);
-            mHandler.postDelayed(time,20);
+            mHandler.postDelayed(task, 20);
+            mHandler.postDelayed(time, 20);
         }
 
         return view;
@@ -542,6 +557,160 @@ public class OtaFragment extends Fragment {
         super.onSaveInstanceState(outState);
     }
 
+
+    private void checkAndDownload() {
+        showTips(R.string.ota_checking);
+        Log.e(TAG, "checkAndDownload()");
+        String url = "https://github.com/lfkabc/Ble-controller/raw/master/";
+        String url_version = url + "version.txt";
+        String newVersion = getNewVersion(url_version);
+        Log.e(TAG, "new version from server:" + newVersion);
+        if (newVersion != null) {
+            showTips(R.string.ota_download);
+            String path = downloadNewVersion(url, newVersion + "_zs110a_ota.zip");
+            if (path != null) {
+                /*mFilePath = path;
+                SharedpreferencesProvider.saveSharePerferences(SharedpreferencesProvider.OTA_PATH, mFilePath);
+                setText();
+                onUploadClick();*/
+                selectOtaFile(path);
+            } else {
+                showTips(R.string.local_update);
+            }
+        } else {
+            showTips(R.string.local_update);
+        }
+
+    }
+
+    private void showTips(int resourceId) {
+        if (isAdded()) {
+            Snacky.builder()
+                    .setActivity(mMainActivity)
+                    .setText(getString(resourceId))
+                    .centerText()
+                    .setDuration(Snacky.LENGTH_INDEFINITE)
+                    .info()
+                    .show();
+        }
+
+    }
+
+    private void selectOtaFile(String path) {
+        Intent intent = new Intent();
+        intent.setAction(VoiceTestFragment.BROADCAST_RECEIVE);
+        intent.putExtra("notify", "select_ota_file");
+        intent.putExtra("path", path);
+        mMainActivity.sendBroadcast(intent);
+        showTips(R.string.ota_tips);
+    }
+
+    private String getNewVersion(String url_version) {
+        int HttpResult; // 服务器返回的状态
+        String content = null;
+        try {
+            URL url = new URL(url_version); // 创建URL
+            URLConnection urlconn = url.openConnection(); // 试图连接并取得返回状态码
+            urlconn.connect();
+            HttpURLConnection httpconn = (HttpURLConnection) urlconn;
+            HttpResult = httpconn.getResponseCode();
+            if (HttpResult != HttpURLConnection.HTTP_OK) {
+                System.out.print("无法连接到");
+            } else {
+                InputStreamReader isReader = new InputStreamReader(urlconn.getInputStream(), "UTF-8");
+                BufferedReader reader = new BufferedReader(isReader);
+                StringBuffer buffer = new StringBuffer();
+                content = reader.readLine();
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (content != null) {
+            int currentVersion = str2Version(mFirmwareVersion);
+            int serverVersion = str2Version(content);
+            Log.e(TAG, "getNewVersion() current:" + currentVersion + "  new:" + serverVersion);
+            //return currentVersion < serverVersion ? content : null;
+            return content;
+        }
+
+        return null;
+
+    }
+
+    private String downloadNewVersion(String url, String fileName) {
+        InputStream inputStream = null;
+        FileOutputStream fileOutputStream = null;
+        HttpURLConnection httpURLConnection = null;
+        String result = null;
+
+        File pathSd = Environment.getExternalStorageDirectory();
+        File file = new File(pathSd, fileName);
+        Log.i(TAG, "file: " + file);
+        if (!file.exists()) {  //倘若没有这个文件
+            try {
+                Log.i(TAG, "create file " + file);
+                file.createNewFile();  //创建这个文件
+            } catch (IOException e) {
+                Log.i(TAG, "fail !!!!!!!!!!!!!! create file " + file);
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            URL downloadUrl = new URL(url + fileName);
+            Log.e(TAG, "url:" + downloadUrl);
+            httpURLConnection = (HttpURLConnection) downloadUrl.openConnection();
+            httpURLConnection.connect();
+            int code = httpURLConnection.getResponseCode();
+            if (code == 200) {
+                int fileSize = httpURLConnection.getContentLength();
+                Log.i(TAG, "file size： " + fileSize);
+                inputStream = httpURLConnection.getInputStream();
+                fileOutputStream = new FileOutputStream(file);
+                byte[] b = new byte[1024];
+                int size = 0;
+                while ((size = inputStream.read(b)) != -1) {
+                    fileOutputStream.write(b, 0, size);
+                }
+                result = file.getAbsolutePath();
+
+            } else {
+                Log.e(TAG, "no internet?? ");
+            }
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (inputStream != null) {
+                    inputStream.close();
+                }
+
+                if (fileOutputStream != null) {
+                    fileOutputStream.close();
+                }
+
+                if (httpURLConnection != null) {
+                    httpURLConnection.disconnect();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        Log.i(TAG, "download success");
+        return result;
+    }
+
+    private int str2Version(String str) {
+        String temp = str.substring(5);
+        temp = temp.replace("_", "");
+        return Integer.parseInt(temp);
+    }
+
+
     public void showFileChooser() {
         if (ActivityCompat.checkSelfPermission(
                 getActivity(), Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -566,10 +735,10 @@ public class OtaFragment extends Fragment {
     }
 
     //新版cache含有crc校验，返回true，旧版false
-    private boolean hasEnable_crc(String xmlPath){
+    private boolean hasEnable_crc(String xmlPath) {
         try {
             File file = new File(xmlPath);
-            InputStream is =  new FileInputStream(file);
+            InputStream is = new FileInputStream(file);
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             //获得Document对象
@@ -580,11 +749,11 @@ public class OtaFragment extends Fragment {
                 NodeList childNodes = node_partition.getChildNodes();
                 for (int j = 0; j < childNodes.getLength(); j++) {
                     Node childNode = childNodes.item(j);
-                    Log.d(TAG, childNode.getNodeName() + " -- " +childNode.getTextContent());
-                    if ("enable_crc".equals(childNode.getNodeName())){
+                    Log.d(TAG, childNode.getNodeName() + " -- " + childNode.getTextContent());
+                    if ("enable_crc".equals(childNode.getNodeName())) {
                         mHasCrcEnable = true;
                     }
-                    if ("enable_crc".equals(childNode.getNodeName()) && childNode.getTextContent().equalsIgnoreCase("true")){
+                    if ("enable_crc".equals(childNode.getNodeName()) && childNode.getTextContent().equalsIgnoreCase("true")) {
                         Log.d(TAG, "enable_crc true");
                         return true;
                     }
@@ -592,11 +761,11 @@ public class OtaFragment extends Fragment {
             }
             if (is != null)
                 is.close();
-        } catch (ParserConfigurationException e){
+        } catch (ParserConfigurationException e) {
             e.printStackTrace();
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
-        } catch (SAXException e){
+        } catch (SAXException e) {
             e.printStackTrace();
         }
         Log.d(TAG, "enable_crc false");
@@ -617,14 +786,14 @@ public class OtaFragment extends Fragment {
                 }
             }
             mHasCrcEnable = false;
-            if (hasEnable_crc(xmlPath)){
-                mPartTableSize = 384/32*34;
+            if (hasEnable_crc(xmlPath)) {
+                mPartTableSize = 384 / 32 * 34;
                 mCrcEnable = true;
-                bootloaderContentLen = 3*1024/32*34;
+                bootloaderContentLen = 3 * 1024 / 32 * 34;
             } else {
                 mPartTableSize = 384;
                 mCrcEnable = false;
-                bootloaderContentLen = 3*1024;
+                bootloaderContentLen = 3 * 1024;
             }
             mPartTableByte = new byte[mPartTableSize];
             File f = new File(xmlPath);
@@ -653,15 +822,14 @@ public class OtaFragment extends Fragment {
                 xmlRoot.setVersion(xmlRootCrcenable.getVersion());
                 xmlRoot.setPartitionsNum(xmlRootCrcenable.getPartitionsNum());
                 List<XmlPartition> xmlPartitionList = new ArrayList<>();
-                for(int i=0; i < xmlRootCrcenable.getmXmlPartitons().size(); i++){
+                for (int i = 0; i < xmlRootCrcenable.getmXmlPartitons().size(); i++) {
                     XmlPartitionCrcenable xmlPartitionCrcenable = xmlRootCrcenable.getmXmlPartitons().get(i);
-                    XmlPartition xmlPartition = new XmlPartition(xmlPartitionCrcenable.getType(), xmlPartitionCrcenable.getName(),xmlPartitionCrcenable.getFile(),
-                            xmlPartitionCrcenable.getAddress(),xmlPartitionCrcenable.getFw_id(),xmlPartitionCrcenable.getCrc32());
+                    XmlPartition xmlPartition = new XmlPartition(xmlPartitionCrcenable.getType(), xmlPartitionCrcenable.getName(), xmlPartitionCrcenable.getFile(),
+                            xmlPartitionCrcenable.getAddress(), xmlPartitionCrcenable.getFw_id(), xmlPartitionCrcenable.getCrc32());
                     xmlPartitionList.add(xmlPartition);
                 }
                 xmlRoot.setmXmlPartitons(xmlPartitionList);
-            }
-            else{
+            } else {
                 Serializer ser = new Persister();
                 xmlRoot = ser.read(XmlRoot.class, f);
 
@@ -687,15 +855,34 @@ public class OtaFragment extends Fragment {
         }
     }
 
-    private void getBatteryValue(){
+    private void getFirmwareValue() {
+        rxBleConnection.readCharacteristic(firmwareVelUuid)
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        characteristicValue -> {
+                            // Read characteristic value.
+                            mFirmwareVersion = new String(characteristicValue);
+                            String log = "kkkkk firmware version: " + mFirmwareVersion;
+                            Log.e(TAG, log);
+                            setLogText(log);
+                        },
+                        throwable -> {
+                            // Handle an error here.
+                            Log.e(TAG, "get firmware version fail ..........!!!!!!!");
+                        }
+                );
+    }
+
+
+    private void getBatteryValue() {
         mBatteryVal = 0;
         rxBleConnection.readCharacteristic(batteryValUuid)
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         characteristicValue -> {
                             // Read characteristic value.
-                            String log = "Battery Level: " + Integer.valueOf(HexString.bytesToHex(characteristicValue),16) + "%";
-                            Log.d(TAG,  log);
+                            String log = "Battery Level: " + Integer.valueOf(HexString.bytesToHex(characteristicValue), 16) + "%";
+                            Log.d(TAG, log);
                             setLogText(log);
                             mBatteryVal = Integer.valueOf(HexString.bytesToHex(characteristicValue), 16);
                             if (mBatteryVal > 30) {
@@ -727,7 +914,7 @@ public class OtaFragment extends Fragment {
         }
     }
 
-    private void onCancelUpload(){
+    private void onCancelUpload() {
         if (disposable != null && !disposable.isDisposed()) {
             disposable.dispose();
         }
@@ -738,10 +925,10 @@ public class OtaFragment extends Fragment {
         WdxcFtcSendAbort(wdxcCb.mOTAHandle);
     }
 
-    private void startUploadBin(){
+    private void startUploadBin() {
         try {
             String name = mBinPath.get(mCurUpdateIndex);
-            name = name.substring(name.lastIndexOf("/")+1) + "    " + (mCurUpdateIndex+1) + "/" + mBinPath.size();
+            name = name.substring(name.lastIndexOf("/") + 1) + "    " + (mCurUpdateIndex + 1) + "/" + mBinPath.size();
             mTextSendingFileName.setText(name);
             setLogText("startUploadBin: " + name);
             getmTextSendingFileSize.setText(Utils.getFileSize(mBinPath.get(mCurUpdateIndex)) + "");
@@ -834,7 +1021,7 @@ public class OtaFragment extends Fragment {
             wdxcCb.mPacketNumber = 0;
             //HexInputStream class convert file format from Hex to Binary
 
-		/*	mFileStream = new HexInputStream(stream);*/
+            /*	mFileStream = new HexInputStream(stream);*/
             mFileStream = stream;
             wdxcCb.mFileSize = mFileStream.available();
             wdxcCb.mTotalPackets = getNumberOfPackets();
@@ -878,6 +1065,15 @@ public class OtaFragment extends Fragment {
                             wdxcWdxsFtd = service.getCharacteristic(wdxcFtdUuid).blockingGet();
                             wdxcWdxsDc = service.getCharacteristic(wdxcDcUuid).blockingGet();
                             //wdxcWdxsAu = service.getCharacteristic(wdxcAuUuid);
+
+                            getFirmwareValue();
+                            new Thread() {
+                                @Override
+                                public void run() {
+                                    SystemClock.sleep(2000);
+                                    checkAndDownload();
+                                }
+                            }.start();
                         },
                         this::onConnectionFailureDfuNotFound
                 );
@@ -891,7 +1087,7 @@ public class OtaFragment extends Fragment {
         reset();
     }
 
-    public void restState(){
+    public void restState() {
         mFileTransferStatus = NO_TRANSFER;
     }
 
@@ -940,20 +1136,20 @@ public class OtaFragment extends Fragment {
         //noinspection ConstantConditions
         if (index >= mPartTableSize)
             index = 0;
-        System.arraycopy(bytes,0, mPartTableByte, index, bytes.length);
+        System.arraycopy(bytes, 0, mPartTableByte, index, bytes.length);
         index += bytes.length;
         Log.d(TAG, index + " len");
         setLogText("onNotificationReceivedFtd: " + HexString.byteArrayToHexString(bytes));
         setLogText("onNotificationReceivedFtd total len:" + index);
-        if (index == mPartTableSize){
-            setLogText("onNotificationReceivedFtd "+ mPartTableSize +" bytes");
-            if (mCrcEnable){
+        if (index == mPartTableSize) {
+            setLogText("onNotificationReceivedFtd " + mPartTableSize + " bytes");
+            if (mCrcEnable) {
                 byte[] table = new byte[384];
-                for (int i=0; i < 384/32; i++){
-                    System.arraycopy(mPartTableByte, i*34, table, i*32, 32);
+                for (int i = 0; i < 384 / 32; i++) {
+                    System.arraycopy(mPartTableByte, i * 34, table, i * 32, 32);
                 }
                 mPartitionTable = new PartitionTable(table);
-            }else {
+            } else {
                 mPartitionTable = new PartitionTable(mPartTableByte);
             }
             mHandler.sendEmptyMessage(OTA_SUCCESS);
@@ -1037,11 +1233,10 @@ public class OtaFragment extends Fragment {
                 if (mPart.getType() == mPartitionTypeMap.getType("BOOT")) {
                     if (bootLoaderSendTimes == 1) {
                         mProgress = (int) (wdxcCb.mOTATxCount * 1.0 / bootLoaderTableData.length * 100);
-                    }else if (bootLoaderSendTimes == 2){
+                    } else if (bootLoaderSendTimes == 2) {
                         mProgress = (int) (wdxcCb.mOTATxCount * 1.0 / bootLoaderContentData.length * 100);
                     }
-                }
-                else {
+                } else {
                     mProgress = (int) (wdxcCb.mOTATxCount * 1.0 / wdxcCb.mFileSize * 100);
                 }
                 mHandler.sendEmptyMessage(UPDATE_PROGRESS);
@@ -1049,7 +1244,7 @@ public class OtaFragment extends Fragment {
                 Log.d(TAG, "startTime: " + startTime + "currentTime: " + currentTime + "wdxcCb.mOTATxCount: " + wdxcCb.mOTATxCount);
                 String speed = SpeedUtil.calculateSpeed(startTime, currentTime, wdxcCb.mOTATxCount);
                 mSpeed = speed;
-                if (wdxcCb.mOTATxCount == wdxcCb.mFileSize){
+                if (wdxcCb.mOTATxCount == wdxcCb.mFileSize) {
                     onFileTransferCompleted();
                     setLogText("wdxcParseFtc  Successful File transfer!");
                 }
@@ -1074,21 +1269,22 @@ public class OtaFragment extends Fragment {
                 setLogText("wdxcParseFtc  WDXS_FTC_OP_VERIFY_RSP status: " + status + "from handle: " + handle);
                 if (status == 0) {
                     Log.d(TAG, "Successful File Transfer Validation!");
-                    if (mPart.getType() == mPartitionTypeMap.getType("BOOT") && mPartErase != null){
+                    if (mPart.getType() == mPartitionTypeMap.getType("BOOT") && mPartErase != null) {
                         if (mOTANotStop)
                             ;
-                        else  if (bootLoaderSendTimes == 1)
+                        else if (bootLoaderSendTimes == 1)
                             bootLoaderSendTimes = 2;
-                        else  if (bootLoaderSendTimes == 2) {
+                        else if (bootLoaderSendTimes == 2) {
                             bootLoaderSendTimes = 3;
                             int offset = ((int) mPartErase.getOffset() / 0x1000) * 0x1000;
                             long len = mPart.getOffset() - mPartErase.getOffset();
                             if (mCrcEnable) {
                                 offset = offset / 32 * 34;
-                            }if (offset == 0)
-                                WdxcFtcSendEraseReq(1, offset, (((int) Math.abs(mPart.getOffset() - mPartErase.getOffset())+0x1000-1)/0x1000)*0x1000);
+                            }
+                            if (offset == 0)
+                                WdxcFtcSendEraseReq(1, offset, (((int) Math.abs(mPart.getOffset() - mPartErase.getOffset()) + 0x1000 - 1) / 0x1000) * 0x1000);
                             else
-                                WdxcFtcSendEraseReq(1, offset, (((int) Math.abs(len)+0x1000-1)/0x1000)*0x1000);
+                                WdxcFtcSendEraseReq(1, offset, (((int) Math.abs(len) + 0x1000 - 1) / 0x1000) * 0x1000);
                         }
                     }
                     setLogText("wdxcParseFtc  Successful File Transfer Validation!");
@@ -1099,35 +1295,31 @@ public class OtaFragment extends Fragment {
                     mHandler.sendEmptyMessage(VERIFYFILES_FAILED);
                     //mCallbacks.onError(ERROR_FILE_VALIDATION, status);
                 }
-                if (mCurUpdateIndex + 1 > mBinPath.size()){
-                    if(status == 0)
+                if (mCurUpdateIndex + 1 > mBinPath.size()) {
+                    if (status == 0)
                         mFileTransferStatus = FINISHED_TRANSFER;
                     else
                         mFileTransferStatus = VERIFY_FAILED;
                     mHandler.sendEmptyMessage(UPDATE_UPLOAD_BTN);
                 }
-            }
-            else if (opCode == DfuData.WDXS_FTC_OP_ERASE_RSP){
+            } else if (opCode == DfuData.WDXS_FTC_OP_ERASE_RSP) {
                 Log.d(TAG, "WDXS_FTC_OP_ERASE_RSP" + handle);
                 setLogText("wdxcParseFtc  WDXS_FTC_OP_ERASE_RSP" + handle);
                 if (mPart.getType() == mPartitionTypeMap.getType("BOOT")) {
-                    if (bootLoaderSendTimes == 1){
+                    if (bootLoaderSendTimes == 1) {
                         if (mCrcEnable)
-                            WdxcFtcSendPutReq(wdxcCb.mOTAHandle, (mOffset+ 3*1024)/32*34 , wdxcCb.mFileSize-bootloaderContentLen, wdxcCb.mFileSize-bootloaderContentLen, 0);
+                            WdxcFtcSendPutReq(wdxcCb.mOTAHandle, (mOffset + 3 * 1024) / 32 * 34, wdxcCb.mFileSize - bootloaderContentLen, wdxcCb.mFileSize - bootloaderContentLen, 0);
                         else
-                            WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset + bootloaderContentLen, wdxcCb.mFileSize-bootloaderContentLen, wdxcCb.mFileSize-bootloaderContentLen, 0);
+                            WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset + bootloaderContentLen, wdxcCb.mFileSize - bootloaderContentLen, wdxcCb.mFileSize - bootloaderContentLen, 0);
                     }
-                }
+                } else if (mCrcEnable)
+                    WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset / 32 * 34, wdxcCb.mFileSize, wdxcCb.mFileSize, 0);
                 else
-                    if (mCrcEnable)
-                        WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset/32*34, wdxcCb.mFileSize, wdxcCb.mFileSize, 0);
-                    else
-                        WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset, wdxcCb.mFileSize, wdxcCb.mFileSize, 0);//default offset=0
-            }
-            else if (opCode == DfuData.WDXS_FTC_OP_GET_VERSION_RSP) {
-                byte []version = new byte[16];
-                for (int i=0; i < data.length-4; i++){
-                    version[i] = data[i+4];
+                    WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset, wdxcCb.mFileSize, wdxcCb.mFileSize, 0);//default offset=0
+            } else if (opCode == DfuData.WDXS_FTC_OP_GET_VERSION_RSP) {
+                byte[] version = new byte[16];
+                for (int i = 0; i < data.length - 4; i++) {
+                    version[i] = data[i + 4];
                 }
                 mVersion = new String(version);
                 setLogText("FW Version: " + mVersion);
@@ -1147,25 +1339,25 @@ public class OtaFragment extends Fragment {
         int pos = 0;
         int len = pValue.length;
 
-  /* Depending on the MTU, blocks of FTD data from the file list may end mid-value.
-   * Maintain a global position called wdxcCb.fDlPos, and process FTD data byte by byte */
+        /* Depending on the MTU, blocks of FTD data from the file list may end mid-value.
+         * Maintain a global position called wdxcCb.fDlPos, and process FTD data byte by byte */
 
         while (pos < len) {
             if (wdxcCb.fDlPos < DfuData.WDXS_FLIST_HDR_SIZE) {
-      /* Ignore file list header */
+                /* Ignore file list header */
             } else {
-      /* Find the file index and the position within the file index (the mark) */
+                /* Find the file index and the position within the file index (the mark) */
                 byte mark = (byte) ((wdxcCb.fDlPos - DfuData.WDXS_FLIST_HDR_SIZE) % DfuData.WDXS_FLIST_RECORD_SIZE);
                 byte file = (byte) ((wdxcCb.fDlPos - DfuData.WDXS_FLIST_HDR_SIZE) / DfuData.WDXS_FLIST_RECORD_SIZE);
 
-      /* Ignore data if there is insufficient space in wdxcCb.pFileList */
+                /* Ignore data if there is insufficient space in wdxcCb.pFileList */
                 if (file >= wdxcCb.maxFiles) {
                     return;
                 }
 
                 //pInfo = &wdxcCb.FileList[file];
 
-      /* Process a byte of data */
+                /* Process a byte of data */
                 switch (mark) {
                     case 0:
                         wdxcCb.fileCount++;
@@ -1268,7 +1460,7 @@ public class OtaFragment extends Fragment {
     public void WdxcPutFiles(String OtaFIleName) {
         if (bootLoaderSendTimes == 2) {
             if (mCrcEnable)
-                WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset/32*34, bootloaderContentLen, bootloaderContentLen, 0);
+                WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset / 32 * 34, bootloaderContentLen, bootloaderContentLen, 0);
             else
                 WdxcFtcSendPutReq(wdxcCb.mOTAHandle, mOffset, bootloaderContentLen, bootloaderContentLen, 0);
             return;
@@ -1276,24 +1468,24 @@ public class OtaFragment extends Fragment {
         int type = 0;
         int part_index = 0;
         XmlPartition xmlPart1 = null, xmlPart2 = null;
-        for (int i=0; i < xmlRoot.getmXmlPartitons().size(); i++){
+        for (int i = 0; i < xmlRoot.getmXmlPartitons().size(); i++) {
             XmlPartition xmlPartition = xmlRoot.getmXmlPartitons().get(i);
             if (mBinPath.get(mCurUpdateIndex).contains(xmlPartition.getFile())) {
                 type = mPartitionTypeMap.getType(xmlPartition.getType());
-                if (xmlPart1 == null){
+                if (xmlPart1 == null) {
                     xmlPart1 = xmlPartition;
-                } else if (xmlPart2 == null){
+                } else if (xmlPart2 == null) {
                     xmlPart2 = xmlPartition;
                 }
             }
         }
         int part1 = -1, part2 = -1;
-        for (int i=0; i < 15; i++){
+        for (int i = 0; i < 15; i++) {
             Partition partition = mPartitionTable.getParts()[i];
-            if (partition.getType() == type){
-                if (part1 == -1){
+            if (partition.getType() == type) {
+                if (part1 == -1) {
                     part1 = i;
-                } else if (part2 == -1){
+                } else if (part2 == -1) {
                     part2 = i;
                     break;
                 }
@@ -1304,22 +1496,21 @@ public class OtaFragment extends Fragment {
         if (part1 == -1 || xmlPart1 == null) {
             Utils.showToast("Can't get partition table information!", mMainActivity);
             return;
-        }
-        else if (part2 == -1) {
+        } else if (part2 == -1) {
             mPart = mPartitionTable.getParts()[part1];
             mXmlPart = xmlPart1;
-        }else if (mPartitionTable.getParts()[part1].getSeq() < mPartitionTable.getParts()[part2].getSeq()){
+        } else if (mPartitionTable.getParts()[part1].getSeq() < mPartitionTable.getParts()[part2].getSeq()) {
             mPart = mPartitionTable.getParts()[part1];
             mPartErase = mPartitionTable.getParts()[part2];
             part_id = part1;
-            short seq = (short)(mPartitionTable.getParts()[part2].getSeq() + 1);
+            short seq = (short) (mPartitionTable.getParts()[part2].getSeq() + 1);
             mPart.setSeq(seq);
             mXmlPart = xmlPart1;
         } else {
             mPart = mPartitionTable.getParts()[part2];
             mPartErase = mPartitionTable.getParts()[part1];
             part_id = part2;
-            short seq = (short)(mPartitionTable.getParts()[part1].getSeq() + 1);
+            short seq = (short) (mPartitionTable.getParts()[part1].getSeq() + 1);
             mPart.setSeq(seq);
             mXmlPart = xmlPart2;
         }
@@ -1331,7 +1522,7 @@ public class OtaFragment extends Fragment {
             mOffset = Integer.parseInt(val);
         }
         Log.d(TAG, mXmlPart.toString() + " offset  ->>>>>>:" + mOffset);
-        if (mPart.getOffset() != mOffset){
+        if (mPart.getOffset() != mOffset) {
             mPart.setOffset(mOffset);
             mPartitionTable.getParts()[part_id].setSeq(mPart.getSeq());
             mPartitionTable.getParts()[part_id].setOffset(mOffset);
@@ -1357,7 +1548,7 @@ public class OtaFragment extends Fragment {
         //wdxcCb.mOTAHandle = 1;
         if (bootLoaderSendTimes == 1) {
             int offset = (mOffset / 0x1000) * 0x1000;
-            if (mPart.getType() != mPartitionTypeMap.getType("BOOT") && mCrcEnable){
+            if (mPart.getType() != mPartitionTypeMap.getType("BOOT") && mCrcEnable) {
                 offset = offset / 32 * 34;
             }
             WdxcFtcSendEraseReq(wdxcCb.mOTAHandle, offset, ((wdxcCb.mFileSize + 0x1000 - 1) / 0x1000) * 0x1000);
@@ -1425,7 +1616,7 @@ public class OtaFragment extends Fragment {
         }
     }
 
-    public void WdxcFtcSendGetVersion(){
+    public void WdxcFtcSendGetVersion() {
         if (isDFUServiceFound) {
             wdxcCb.mOTAHandle = 1;
             byte[] data = new byte[DfuData.WDXS_FTC_GET_VERSION_LEN];
@@ -1438,7 +1629,7 @@ public class OtaFragment extends Fragment {
         }
     }
 
-    public void WdxcFtcSendReset(){
+    public void WdxcFtcSendReset() {
         if (isDFUServiceFound) {
             byte[] data = new byte[DfuData.WDXS_FTC_SYSTEM_RESET_LEN];
             data[0] = DfuData.WDXS_FTC_OP_RESET;         /* opCode(1byte)         */
@@ -1449,7 +1640,7 @@ public class OtaFragment extends Fragment {
         }
     }
 
-    public void WdxcFtcSendUpdateConnParam(int interval_min, int interval_max, int latency, int timeout){
+    public void WdxcFtcSendUpdateConnParam(int interval_min, int interval_max, int latency, int timeout) {
         if (isDFUServiceFound) {
             byte[] data = new byte[DfuData.WDXS_DC_ID_CONN_UPDATE_LEN];
             data[0] = DfuData.WDXS_DC_ID_CONN_PARAM;         /* opCode(1byte)         */
@@ -1502,7 +1693,7 @@ public class OtaFragment extends Fragment {
         Log.d(TAG, "onFileTransferValidation()");
         setLogText("onFileTransferValidation()");
         isFileValidated = true;
-        mCurUpdateIndex ++;
+        mCurUpdateIndex++;
         if (mPart.getType() == mPartitionTypeMap.getType("BOOT") && bootLoaderSendTimes == 2)
             mCurUpdateIndex--;
         mHandler.sendEmptyMessage(OTA_SUCCESS);
@@ -1531,22 +1722,22 @@ public class OtaFragment extends Fragment {
             data[1] = (byte) (fileHdl & 0xFF);         /* handle(2byte)         */
             data[2] = (byte) ((fileHdl >> 8) & 0xFF);
             int index = 3;
-            int offset = (int)mPart.getOffset();
+            int offset = (int) mPart.getOffset();
             int size = wdxcCb.mFileSize;
             if (mPart.getType() == mPartitionTypeMap.getType("BOOT")) {
-                if (bootLoaderSendTimes == 1){
+                if (bootLoaderSendTimes == 1) {
                     offset = mOffset + bootloaderContentLen;
-                    size = wdxcCb.mFileSize-bootloaderContentLen;
+                    size = wdxcCb.mFileSize - bootloaderContentLen;
                     if (mCrcEnable)
-                        offset = (mOffset + 3*1024)/32*34;
-                } else if(bootLoaderSendTimes == 2){
+                        offset = (mOffset + 3 * 1024) / 32 * 34;
+                } else if (bootLoaderSendTimes == 2) {
                     offset = mOffset;
                     size = bootloaderContentLen;
                     if (mCrcEnable)
-                        offset = mOffset/32*34;
+                        offset = mOffset / 32 * 34;
                 }
             } else if (mCrcEnable)
-                offset = (int)mPart.getOffset()/32*34;
+                offset = (int) mPart.getOffset() / 32 * 34;
             LittleEndian.fillByteArrayInt(data, index, offset);
             index += 4;
             LittleEndian.fillByteArrayInt(data, index, size);
@@ -1560,7 +1751,7 @@ public class OtaFragment extends Fragment {
         }
     }
 
-    private boolean checkCRC32(String filePath){
+    private boolean checkCRC32(String filePath) {
         String crc32 = mXmlPart.getCrc32();
         long val = 0;
         if (crc32.contains("0x"))
@@ -1578,8 +1769,9 @@ public class OtaFragment extends Fragment {
     int bootLoaderPacketContent = 0;
     byte[] bootLoaderTableData = {0};
     byte[] bootLoaderContentData = {0};
-    int bootloaderContentLen = 3*1024;
+    int bootloaderContentLen = 3 * 1024;
     int bootLoaderSendTimes = 1;
+
     //@TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void sendPacketAsync() {
         wdxcCb.mPacketNumber++;
@@ -1598,7 +1790,7 @@ public class OtaFragment extends Fragment {
         Log.d(TAG, "current Mtu: " + rxBleConnection.getMtu());
         setLogText("sendPacketAsync current Mtu: " + rxBleConnection.getMtu());
         writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
-        setLogText("Phone MODEL: "+Build.MODEL);
+        setLogText("Phone MODEL: " + Build.MODEL);
         /*if (Build.MODEL.equals("G620-L75") || Build.MODEL.equals("CHM-UL00")){//这两台手机使用no response方式发送，一段时间后无法收到回调，不兼容
             writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
             setLogText("BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT");
@@ -1612,14 +1804,14 @@ public class OtaFragment extends Fragment {
                         bytes = bufferedSource.readByteArray();
                         wdxcCb.mFileSize = bytes.length;
                         bufferedSource.close();
-                        if (mPart.getType() == mPartitionTypeMap.getType("BOOT")){
+                        if (mPart.getType() == mPartitionTypeMap.getType("BOOT")) {
                             setLogText("upload type : BOOT ");
-                            byte []table = mPartitionTable.toLEByteArray();
+                            byte[] table = mPartitionTable.toLEByteArray();
                             String tPath = mMainActivity.getCacheDirPath() + "/load_table.bin";
                             String tPar = mMainActivity.getCacheDirPath() + "/table.bin";
-                            if(mCrcEnable){
+                            if (mCrcEnable) {
                                 byte[] crctable = crcTable(table);
-                                System.arraycopy(crctable, 0, bytes, bootloaderContentLen, 384/32*34);
+                                System.arraycopy(crctable, 0, bytes, bootloaderContentLen, 384 / 32 * 34);
                             } else {
                                 System.arraycopy(table, 0, bytes, bootloaderContentLen, 384);
                             }
@@ -1672,7 +1864,7 @@ public class OtaFragment extends Fragment {
                             if (bytesSend.length % packetLen != 0)
                                 i = 1;
                             final int totalPacket = bytesSend.length / packetLen + i;
-                            if (mPart.getType() == mPartitionTypeMap.getType("BOOT")){
+                            if (mPart.getType() == mPartitionTypeMap.getType("BOOT")) {
                                 if (bootLoaderSendTimes == 1) {
                                     bootLoaderPacketTable = (bytesSend.length - bootloaderContentLen) / packetLen;
                                     if ((bytesSend.length - bootloaderContentLen) % packetLen != 0)
@@ -1686,8 +1878,7 @@ public class OtaFragment extends Fragment {
                                     mCrc32Val = Utils.calculateCRC32(bootLoaderTableData);
                                     Log.d(TAG, "bootloader crc32 1: " + mCrc32Val);
                                     Log.d(TAG, "bootloader totalPacket: " + (bootLoaderPacketTable + bootLoaderPacketContent));
-                                }
-                                else {
+                                } else {
                                     mCrc32Val = Utils.calculateCRC32(bootLoaderContentData);
                                 }
                             }
@@ -1712,10 +1903,9 @@ public class OtaFragment extends Fragment {
                                     }
                                     if (status != BluetoothGatt.GATT_SUCCESS) {
                                         emitter.onError(new BleGattException(gatt, status, BleGattOperationType.CHARACTERISTIC_WRITE));
-                                    }
-                                    else if (mPart.getType() == mPartitionTypeMap.getType("BOOT")){
-                                        Log.d(TAG, "send bootloader bin packet: " +batchesSent.get());
-                                        if (bootLoaderSendTimes == 1){
+                                    } else if (mPart.getType() == mPartitionTypeMap.getType("BOOT")) {
+                                        Log.d(TAG, "send bootloader bin packet: " + batchesSent.get());
+                                        if (bootLoaderSendTimes == 1) {
                                             if (batchesSent.get() == bootLoaderPacketTable + 1) {
                                                 if (ackCompleted.get()) {
                                                     batchesSent.set(1);
@@ -1749,7 +1939,7 @@ public class OtaFragment extends Fragment {
                                                 } else {
                                                     writeCompleted.set(true);
                                                 }
-                                            }else {
+                                            } else {
                                                 int end = packetLen * batchesSent.get() > bootLoaderContentData.length ? bootLoaderContentData.length : packetLen * batchesSent.get();
                                                 mData = Arrays.copyOfRange(bootLoaderContentData, (batchesSent.get() - 1) * packetLen, end);
                                                 characteristic.setValue(mData);
@@ -1758,8 +1948,7 @@ public class OtaFragment extends Fragment {
                                                 emitter.onNext(mData);
                                             }
                                         }
-                                    }
-                                    else if (batchesSent.get() == totalPacket + 1) {
+                                    } else if (batchesSent.get() == totalPacket + 1) {
                                         if (ackCompleted.get()) {
                                             batchesSent.set(1);
                                             ackCompleted.set(false);
@@ -1871,17 +2060,17 @@ public class OtaFragment extends Fragment {
 
     }
 
-    private byte[] crcTable(byte []table){
-        int len = table.length/32*34;
-        byte []crctable = new byte[len];
-        for(int i=0; i < table.length/32; i++){
-            byte []temp = new byte[32];
-            System.arraycopy(table, i*32, temp, 0, 32);
-            System.arraycopy(temp, 0, crctable, i*34, 32);
+    private byte[] crcTable(byte[] table) {
+        int len = table.length / 32 * 34;
+        byte[] crctable = new byte[len];
+        for (int i = 0; i < table.length / 32; i++) {
+            byte[] temp = new byte[32];
+            System.arraycopy(table, i * 32, temp, 0, 32);
+            System.arraycopy(temp, 0, crctable, i * 34, 32);
             int crc = Utils.crc16_calculate(temp);
-            byte []crcshort = new byte[2];
+            byte[] crcshort = new byte[2];
             LittleEndian.fillByteArrayShort(crcshort, 0, crc);
-            System.arraycopy(crcshort, 0, crctable, (i+1)*32+i*2, 2);
+            System.arraycopy(crcshort, 0, crctable, (i + 1) * 32 + i * 2, 2);
         }
         return crctable;
     }

@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import de.mateware.snacky.Snacky;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
@@ -103,7 +104,7 @@ public class ScanActivity extends RxAppCompatActivity {
         configureResultList();
         askMultiplePermission();
         nameFilter = SharedpreferencesProvider.getSharePerferences(SharedpreferencesProvider.BLE_NAME_FILTER);
-        if (!nameFilter.isEmpty()){
+        if (!nameFilter.isEmpty()) {
             bleNameFilter.setText(nameFilter);
             bleNameFilter.setSelection(nameFilter.length());
         }
@@ -120,6 +121,14 @@ public class ScanActivity extends RxAppCompatActivity {
         updateButtonUIState();
     }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        View rootview = this.getWindow().getDecorView();
+        int focusId = rootview.findFocus().getId();
+        Log.i(TAG, "focus : kkkkkkkkkkkkk id = 0x" + Integer.toHexString(focusId));
+        super.onWindowFocusChanged(hasFocus);
+    }
+
     private void stopScan() {
         scanDisposable.dispose();
     }
@@ -127,30 +136,32 @@ public class ScanActivity extends RxAppCompatActivity {
     private void startScan() {
         resultsAdapter.clearScanResults();
         nameFilter = bleNameFilter.getText().toString().trim();
-        SharedpreferencesProvider.saveSharePerferences(SharedpreferencesProvider.BLE_NAME_FILTER,nameFilter);
+        SharedpreferencesProvider.saveSharePerferences(SharedpreferencesProvider.BLE_NAME_FILTER, nameFilter);
         BluetoothManager bluetoothManager = (BluetoothManager) VoiceBleTestApplication.getContext().getSystemService(Context.BLUETOOTH_SERVICE);
         List<BluetoothDevice> devices = bluetoothManager.getConnectedDevices(BluetoothProfile.GATT);
         Log.d(TAG, "devices size: " + devices.size());
-        Log.d(TAG, "bond size: "+ bluetoothManager.getAdapter().getBondedDevices().size());
+        Log.d(TAG, "bond size: " + bluetoothManager.getAdapter().getBondedDevices().size());
         Set<RxBleDevice> rxBondDevices = rxBleClient.getBondedDevices();
         Set<BluetoothDevice> bonddevices = bluetoothManager.getAdapter().getBondedDevices();
         //devices.addAll(bluetoothManager.getAdapter().getBondedDevices());
-        for(RxBleDevice device:rxBondDevices){
-            if(device.getBluetoothDevice().getType() == BluetoothDevice.DEVICE_TYPE_LE) {
+        for (RxBleDevice device : rxBondDevices) {
+            if (device.getBluetoothDevice().getType() == BluetoothDevice.DEVICE_TYPE_LE) {
                 RxBleDevice bleDevice = device;
                 Log.d(TAG, "bond ble: " + bleDevice.getName());
                 scanResult = new ScanResult(bleDevice, rssi, System.currentTimeMillis(), CALLBACK_TYPE_ALL_MATCHES, null);
-                if (bleDevice.getName() != null && bleDevice.getName().contains(nameFilter)) {
+                //if (bleDevice.getName() != null && bleDevice.getName().contains(nameFilter)) {
+                Log.d("xxx", "get mac: " + bleDevice.getMacAddress());
+                if (bleDevice.getMacAddress().startsWith("F4:4E:FD")) {
                     resultsAdapter.addScanResult(scanResult);
                 }
             }
         }
-        for(BluetoothDevice device : devices) {
-            if(device.getType() == BluetoothDevice.DEVICE_TYPE_LE) {
+        for (BluetoothDevice device : devices) {
+            if (device.getType() == BluetoothDevice.DEVICE_TYPE_LE) {
                 RxBleDevice bleDevice = rxBleClient.getBleDevice(device.getAddress());
                 rssi = 0;
                 scanResult = null;
-                bleDevice.establishConnection( false)
+                bleDevice.establishConnection(false)
                         .compose(bindUntilEvent(PAUSE))
                         .observeOn(AndroidSchedulers.mainThread())
                         .flatMap(rxBleConnection -> // Set desired interval.
@@ -158,10 +169,12 @@ public class ScanActivity extends RxAppCompatActivity {
                         .subscribe(new Consumer<Integer>() {
                                        @Override
                                        public void accept(Integer integer) throws Exception {
-                                           rssi = (int)integer;
+                                           rssi = (int) integer;
                                            Log.d(TAG, "getRssi: " + rssi);
-                                           scanResult = new ScanResult(bleDevice,rssi,System.currentTimeMillis(),CALLBACK_TYPE_ALL_MATCHES,null);
-                                           if (bleDevice.getName() != null && bleDevice.getName().contains(nameFilter)) {
+                                           scanResult = new ScanResult(bleDevice, rssi, System.currentTimeMillis(), CALLBACK_TYPE_ALL_MATCHES, null);
+                                           //if (bleDevice.getName() != null && bleDevice.getName().contains(nameFilter)) {
+                                           Log.d("xxx", "get mac: " + bleDevice.getMacAddress());
+                                           if (bleDevice.getMacAddress().startsWith("F4:4E:FD")) {
                                                resultsAdapter.addScanResult(scanResult);
                                            }
                                        }
@@ -169,13 +182,15 @@ public class ScanActivity extends RxAppCompatActivity {
                                 new Consumer<Throwable>() {
                                     @Override
                                     public void accept(Throwable throwable) throws Exception {
-                                        Log.d(TAG,throwable.toString());
+                                        Log.d(TAG, throwable.toString());
                                     }
                                 }
                         );
                 Log.d(TAG, "ble already connected！" + device.getName());
-                scanResult = new ScanResult(bleDevice,rssi,System.currentTimeMillis(),CALLBACK_TYPE_ALL_MATCHES,null);
-                if (bleDevice.getName() != null && bleDevice.getName().contains(nameFilter)) {
+                scanResult = new ScanResult(bleDevice, rssi, System.currentTimeMillis(), CALLBACK_TYPE_ALL_MATCHES, null);
+                //if (bleDevice.getName() != null && bleDevice.getName().contains(nameFilter)) {
+                Log.d("xxx", "get mac: " + bleDevice.getMacAddress());
+                if (bleDevice.getMacAddress().startsWith("F4:4E:FD")) {
                     resultsAdapter.addScanResult(scanResult);
                 }
             }
@@ -196,14 +211,16 @@ public class ScanActivity extends RxAppCompatActivity {
                     @Override
                     public void accept(ScanResult scanResult) throws Exception {
                         String name = "";
-                        if (scanResult != null && scanResult.getBleDevice() !=null && scanResult.getBleDevice().getName() !=null)
+                        if (scanResult != null && scanResult.getBleDevice() != null && scanResult.getBleDevice().getName() != null)
                             name = scanResult.getBleDevice().getName();
-                        if (name.contains(nameFilter)) {
+                        //if (name.contains(nameFilter)) {
+                        Log.d("xxx", "get mac: " + scanResult.getBleDevice().getMacAddress());
+                        if (scanResult.getBleDevice().getMacAddress().startsWith("F4:4E:FD")) {
                             resultsAdapter.addScanResult(scanResult);
                         }
                     }
-                },this::onScanFailure);
-                //.subscribe(resultsAdapter::addScanResult, this::onScanFailure);
+                }, this::onScanFailure);
+        //.subscribe(resultsAdapter::addScanResult, this::onScanFailure);
     }
 
     private void configureResultList() {
@@ -317,22 +334,22 @@ public class ScanActivity extends RxAppCompatActivity {
             }
             return;
         }
-        if(bondsState == BluetoothDevice.BOND_NONE) {
-        if (Build.VERSION.SDK_INT > 18) {
-            BluetoothDevice device = itemAtPosition.getBleDevice().getBluetoothDevice();
-            device.createBond();
-            // }
-        } else {
-            try {
+        if (bondsState == BluetoothDevice.BOND_NONE) {
+            if (Build.VERSION.SDK_INT > 18) {
                 BluetoothDevice device = itemAtPosition.getBleDevice().getBluetoothDevice();
-                Method m = device.getClass()
-                        .getMethod("createBond", (Class[]) null);
-                m.invoke(device, (Object[]) null);
-            } catch (Exception e) {
+                device.createBond();
+                // }
+            } else {
+                try {
+                    BluetoothDevice device = itemAtPosition.getBleDevice().getBluetoothDevice();
+                    Method m = device.getClass()
+                            .getMethod("createBond", (Class[]) null);
+                    m.invoke(device, (Object[]) null);
+                } catch (Exception e) {
 
+                }
             }
-        }
-           // Toast.makeText(ScanActivity.this, "API at 18 does not support bond!", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(ScanActivity.this, "API at 18 does not support bond!", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -416,12 +433,25 @@ public class ScanActivity extends RxAppCompatActivity {
     }
 
     @Override
-    public void onResume(){
+    public void onResume() {
         super.onResume();
         Log.d(TAG, "onResume");
+        showTips(R.string.ota_pair_tips);
 
         if (resultsAdapter != null)
             resultsAdapter.clearScanResults();
+
+    }
+
+    private void showTips(int resourceId) {
+        Snacky.builder()
+                .setActivity(this)
+                .setText(getString(resourceId))
+                .centerText()
+                .setDuration(Snacky.LENGTH_INDEFINITE)
+                .info()
+                .show();
+
     }
 
     @Override
@@ -465,7 +495,7 @@ public class ScanActivity extends RxAppCompatActivity {
 
     private void updateButtonUIState() {
         getSupportActionBar().setTitle(isScanning() ? R.string.scanning_ble : R.string.app_name);
-        if (menu !=null && menu.findItem(R.id.action_scan) != null)
+        if (menu != null && menu.findItem(R.id.action_scan) != null)
             menu.findItem(R.id.action_scan).setTitle(isScanning() ? R.string.stop_scan : R.string.start_scan);
     }
 
@@ -485,23 +515,23 @@ public class ScanActivity extends RxAppCompatActivity {
 
         if (needPermission.size() > 0) {
             //开始申请权限
-                if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                        Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION)) {
 
-                    // Show an expanation to the user *asynchronously* -- don't block
-                    // this thread waiting for the user's response! After the user
-                    // sees the explanation, try again to request the permission.
+                // Show an expanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
 
-                } else {
-                    ActivityCompat.requestPermissions(this, needPermission.toArray(new String[needPermission.size()]), REQUEST_PERMISSION_CODE);
-                }
             } else {
+                ActivityCompat.requestPermissions(this, needPermission.toArray(new String[needPermission.size()]), REQUEST_PERMISSION_CODE);
+            }
+        } else {
             //获取数据
         }
 
     }
 
-    public  boolean checkIsAskPermission(Context context, String permission) {
+    public boolean checkIsAskPermission(Context context, String permission) {
         if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
             return false;
         } else {
@@ -510,7 +540,7 @@ public class ScanActivity extends RxAppCompatActivity {
 
     }
 
-    public  boolean checkIsAskPermissionState(Map<String, Integer> maps, String[] list) {
+    public boolean checkIsAskPermissionState(Map<String, Integer> maps, String[] list) {
         for (int i = 0; i < list.length; i++) {
             if (maps.get(list[i]) != PackageManager.PERMISSION_GRANTED) {
                 return false;
@@ -524,7 +554,7 @@ public class ScanActivity extends RxAppCompatActivity {
         // Here, thisActivity is the current activity
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED ) {
+                != PackageManager.PERMISSION_GRANTED) {
 
             // Should we show an explanation?
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
@@ -559,7 +589,7 @@ public class ScanActivity extends RxAppCompatActivity {
                         needPermission) {
                     permissionMap.put(name, PackageManager.PERMISSION_GRANTED);
                     Log.d(TAG, name + "permission was granted");
-                    if(name.equals(Manifest.permission.ACCESS_COARSE_LOCATION)){
+                    if (name.equals(Manifest.permission.ACCESS_COARSE_LOCATION)) {
                         onScanToggleClick();
                     }
                 }
