@@ -15,4 +15,28 @@
     <color name="littleWhite">#f9f9f9</color>
     <color name="black">#000000</color>
     <color name="light_blue">#6593cb</color>
+
+
+    <color name="purple">#ffd4237a</color>
+    <color name="bule">#ff1296db</color>
+    <color name="red">#ffd81e06</color>
+    <color name="green">#ff1afa29</color>
+    <color name="yellow">#fff4ea2a</color>
+    <color name="youlingbai">#fff8f8ff</color>
+    <color name="write">#ffffffff</color>
+    <color name="invisible">#00000000</color>
+
+
+    <color name="red_line">#ffff0000</color>
+    <color name="orange_line">#ffff9600</color>
+    <color name="yellow_line">#ffffff00</color>
+    <color name="green_line">#ff00ff00</color>
+    <color name="cyan_line">#ff00ffff</color>
+    <color name="sky_blue_line">#ff87ceeb</color>
+    <color name="blue_line">#ff0000ff</color>
+    <color name="pupre_line">#ffff00ff</color>
+
+    <drawable name="black">#000000</drawable>
+    <drawable name="other">#fff00f</drawable>
+    <drawable name="blue">#0000FF</drawable>
 </resources>

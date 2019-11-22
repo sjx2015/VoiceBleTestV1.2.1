@@ -18,7 +18,6 @@ import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.widget.AdapterView;
@@ -41,6 +40,7 @@ import com.actions.voicebletest.jni.DecodeJni;
 import com.actions.voicebletest.log.LogcatManager;
 import com.actions.voicebletest.utils.HexString;
 import com.actions.voicebletest.utils.Utils;
+import com.actions.voicebletest.log.Log;
 import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.afollestad.materialdialogs.folderselector.FileChooserDialog;
@@ -279,9 +279,9 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
             getSupportFragmentManager().beginTransaction().replace(R.id.frame_container, f, OtaFragment.class.getSimpleName()).commit();
         }
 
-        if (!checkStoragePermission()) {
-            exitWithoutWriteStoragePermission();
-        } else {
+        //if (!checkStoragePermission()) {
+        //    exitWithoutWriteStoragePermission();
+        //} else {
             initLogcatRecord();
             makePcmDirectory();
             //discoverServices();
@@ -294,7 +294,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
                     .subscribe(this::onConnectionStateChange);
             showIniting();
             mHandler.postDelayed(connectTask, 3000);
-        }
+       // }
         Log.d(TAG, "bleConnect state: " + bleDevice.getConnectionState().toString());
         setErrorHandler();
         //mDecodeJni.Init();
@@ -330,7 +330,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
                 //Thread.currentThread().getUncaughtExceptionHandler().handleException(Thread.currentThread(), e);
                 return;
             }
-            Log.w(TAG, "setErrorHandler: " + e);
+            Log.d(TAG, "setErrorHandler: " + e);
             setLogText(e.toString());
         });
     }

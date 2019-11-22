@@ -13,13 +13,11 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,6 +35,7 @@ import com.actions.voicebletest.dfu.XmlPartition;
 import com.actions.voicebletest.dfu.XmlPartitionCrcenable;
 import com.actions.voicebletest.dfu.XmlRoot;
 import com.actions.voicebletest.dfu.XmlRootCrcenable;
+import com.actions.voicebletest.log.Log;
 import com.actions.voicebletest.main.MainActivity;
 import com.actions.voicebletest.utils.HexString;
 import com.actions.voicebletest.utils.LittleEndian;
@@ -315,6 +314,7 @@ public class OtaFragment extends Fragment {
                         mOtaTipsTextView.setText(R.string.ota_success);
                         File file = new File(mFilePath);
                         if (file.exists()) {
+                            Log.e(TAG, "delete file:" + mFilePath);
                             file.delete();
                         }
                         if (mOTANotStop) {
@@ -631,8 +631,9 @@ public class OtaFragment extends Fragment {
             int currentVersion = str2Version(mFirmwareVersion);
             int serverVersion = str2Version(content);
             Log.e(TAG, "getNewVersion() current:" + currentVersion + "  new:" + serverVersion);
-            //return currentVersion < serverVersion ? content : null;
-            return content;
+            return currentVersion < serverVersion ? content : null;
+            //lfk for debug
+            //return content;
         }
 
         return null;
@@ -645,7 +646,8 @@ public class OtaFragment extends Fragment {
         HttpURLConnection httpURLConnection = null;
         String result = null;
 
-        File pathSd = Environment.getExternalStorageDirectory();
+        //File pathSd = Environment.getExternalStorageDirectory();
+        File pathSd = getActivity().getCacheDir();
         File file = new File(pathSd, fileName);
         Log.i(TAG, "file: " + file);
         if (!file.exists()) {  //倘若没有这个文件

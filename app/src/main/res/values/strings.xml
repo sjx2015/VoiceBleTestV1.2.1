@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">VoiceBleOTA_1.2.1</string>
+    <string name="app_name">VoiceBleOTA</string>
     <string name="start_scan">Start scan</string>
     <string name="stop_scan">Stop scan</string>
     <string name="scanning_ble">Scanning for ble devices</string>
@@ -86,9 +86,10 @@
     <string name="pcm_null">"The file size is 0, Play Failed!"</string>
     <string name="spend_time">Timing: </string>
     <string name="ota_success">OTA Successfully! Please reboot!</string>
+
     <string name="ota_pair_tips">Please hold the \'LEFT\' and \'RIGHT\' buttons on controller to go into pair mode.</string>
     <string name="ota_checking">Checking for a new version on the server . . .</string>
     <string name="ota_download">Downloading the ota update file  . . .</string>
     <string name="ota_tips">Get new ota file success, please click the \'OTA\' button to update your remote controller.</string>
-    <string name="local_update">There is no newer version on server, please do local update if download it from somewhere</string>
+    <string name="local_update">There is no newer version on server, please click the \'SELECT FILE\' button if you download it from somewhere</string>
 </resources>

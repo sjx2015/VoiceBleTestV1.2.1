@@ -17,7 +17,6 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SimpleItemAnimator;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -33,6 +32,7 @@ import com.actions.voicebletest.VoiceBleTestApplication;
 import com.actions.voicebletest.main.MainActivity;
 import com.actions.voicebletest.utils.SharedpreferencesProvider;
 import com.actions.voicebletest.utils.Utils;
+import com.actions.voicebletest.log.Log;
 import com.example.zhouwei.library.CustomPopWindow;
 import com.polidea.rxandroidble2.RxBleClient;
 import com.polidea.rxandroidble2.RxBleDevice;
@@ -75,9 +75,9 @@ public class ScanActivity extends RxAppCompatActivity {
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.INTERNET,
-            Manifest.permission.RECORD_AUDIO,
+           // Manifest.permission.RECORD_AUDIO,
             Manifest.permission.ACCESS_NETWORK_STATE,
-            Manifest.permission.READ_PHONE_STATE,
+           // Manifest.permission.READ_PHONE_STATE,
     };
 
     @BindView(R.id.ble_name_filter)
@@ -408,7 +408,7 @@ public class ScanActivity extends RxAppCompatActivity {
                 text = "Unable to start scanning";
                 break;
         }
-        Log.w("EXCEPTION", text, bleScanException);
+        Log.d("EXCEPTION", text + bleScanException);
         if (log) {
             Log.d(TAG, text);
         } else {
