@@ -3,8 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/VoiceBleTestV1.2.1.iml" filepath="$PROJECT_DIR$/VoiceBleTestV1.2.1.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/voiceble/voiceble.iml" filepath="$PROJECT_DIR$/voiceble/voiceble.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/VoiceBleTestV1.2.1.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/VoiceBleTestV1.2.1.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/voiceble/VoiceBleTestV1.2.1.voiceble.iml" filepath="$PROJECT_DIR$/.idea/modules/voiceble/VoiceBleTestV1.2.1.voiceble.iml" />
     </modules>
   </component>
 </project>

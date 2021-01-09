@@ -1302,7 +1302,7 @@ public class MainActivity extends RxAppCompatActivity implements FileChooserDial
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         //add the values which need to be saved from the drawer to the bundle
-        outState = result.saveInstanceState(outState);
+        if(result != null) outState = result.saveInstanceState(outState);
         super.onSaveInstanceState(outState);
     }
 

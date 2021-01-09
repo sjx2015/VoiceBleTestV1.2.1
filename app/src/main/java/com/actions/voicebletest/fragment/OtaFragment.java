@@ -561,13 +561,15 @@ public class OtaFragment extends Fragment {
     private void checkAndDownload() {
         showTips(R.string.ota_checking);
         Log.e(TAG, "checkAndDownload()");
-        String url = "https://github.com/lfkabc/Ble-controller/raw/master/";
+//        String url = "https://github.com/lfkabc/Ble-controller/raw/master/";
+        String url = "https://github.com/sjx2015/Ble-controller/raw/master/";
         String url_version = url + "version.txt";
         String newVersion = getNewVersion(url_version);
         Log.e(TAG, "new version from server:" + newVersion);
         if (newVersion != null) {
             showTips(R.string.ota_download);
-            String path = downloadNewVersion(url, newVersion + "_zs110a_ota.zip");
+//            String path = downloadNewVersion(url, newVersion + "_zs110a_ota.zip");
+            String path = downloadNewVersion(url, newVersion + ".zip");
             if (path != null) {
                 /*mFilePath = path;
                 SharedpreferencesProvider.saveSharePerferences(SharedpreferencesProvider.OTA_PATH, mFilePath);
@@ -616,25 +618,42 @@ public class OtaFragment extends Fragment {
             HttpResult = httpconn.getResponseCode();
             if (HttpResult != HttpURLConnection.HTTP_OK) {
                 System.out.print("无法连接到");
+                Log.e(TAG,"getNewVersion if ....");
             } else {
                 InputStreamReader isReader = new InputStreamReader(urlconn.getInputStream(), "UTF-8");
                 BufferedReader reader = new BufferedReader(isReader);
                 StringBuffer buffer = new StringBuffer();
+//                while ( (content = reader.readLine()) !=null)
+//                {
+//                    Log.e(TAG,"content=" + content+ "content");
+//                }
                 content = reader.readLine();
+                Log.e(TAG,"getNewVersion else content=djb" + content+"djb");
+                reader.close();
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        if(mFirmwareVersion != null)
+            Log.e(TAG,"mFirmwareVersion.substring(7)="+mFirmwareVersion.substring(7));
+        if ( (content != null) && (mFirmwareVersion !=null) ){
+            Log.d(TAG, "content=" + content);
+            if (content.indexOf(mFirmwareVersion.substring(7)) == -1) //不匹配
+                return content;
+        }
+        /*
         if (content != null) {
             int currentVersion = str2Version(mFirmwareVersion);
+            Log.e(TAG, "getNewVersion()>>> current:" + currentVersion);
             int serverVersion = str2Version(content);
             Log.e(TAG, "getNewVersion() current:" + currentVersion + "  new:" + serverVersion);
             return currentVersion < serverVersion ? content : null;
             //lfk for debug
             //return content;
         }
+        */
 
         return null;
 
@@ -707,8 +726,12 @@ public class OtaFragment extends Fragment {
     }
 
     private int str2Version(String str) {
-        String temp = str.substring(5);
+        Log.d("djb","str2Version str="+ str);
+//        String temp = str.substring(5);
+        String temp = str.substring(6);
+        Log.d("djb","str2Version temp="+ temp);
         temp = temp.replace("_", "");
+        Log.d("djb","str2Version temp changed to="+ temp);
         return Integer.parseInt(temp);
     }
 
@@ -887,7 +910,7 @@ public class OtaFragment extends Fragment {
                             Log.d(TAG, log);
                             setLogText(log);
                             mBatteryVal = Integer.valueOf(HexString.bytesToHex(characteristicValue), 16);
-                            if (mBatteryVal > 30) {
+                            if (mBatteryVal > 20) {
                                 mHandler.sendEmptyMessage(BATTERY_MORE_THAN_50);
                             } else {
                                 mHandler.sendEmptyMessage(BATTERY_LESS_THAN_50);
